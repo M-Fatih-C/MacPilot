@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcuserstate
+
+# SwiftPM
+.build/
+
+# Logs
+*.log
+
+# Private architecture/security notes (kept local)
+ARCHITECTURE.md
+Docs/Private/
+SECURITY_PROTOCOLS_PRIVATE.md
+
+# Local automation/editor
+.vscode/
+.idea/

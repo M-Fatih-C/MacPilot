@@ -1,0 +1,176 @@
+name: MacPilot
+options:
+  bundleIdPrefix: com.macpilot
+  deploymentTarget:
+    macOS: "14.0"
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: 1
+
+targets:
+
+  # ─────────────────────────────────────────────
+  # SharedCore-macOS — Cross-platform framework (macOS)
+  # ─────────────────────────────────────────────
+  SharedCore-macOS:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/SharedCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.SharedCore
+        PRODUCT_NAME: SharedCore
+        PRODUCT_MODULE_NAME: SharedCore
+        SKIP_INSTALL: true
+        DEFINES_MODULE: true
+        CODE_SIGN_IDENTITY: "-"
+        GENERATE_INFOPLIST_FILE: true
+
+  # ─────────────────────────────────────────────
+  # SharedCore-iOS — Cross-platform framework (iOS)
+  # ─────────────────────────────────────────────
+  SharedCore-iOS:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/SharedCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.SharedCore
+        PRODUCT_NAME: SharedCore
+        PRODUCT_MODULE_NAME: SharedCore
+        SKIP_INSTALL: true
+        DEFINES_MODULE: true
+        CODE_SIGN_IDENTITY: "-"
+        GENERATE_INFOPLIST_FILE: true
+
+  # ─────────────────────────────────────────────
+  # MacPilotAgent — macOS CLI Daemon
+  # ─────────────────────────────────────────────
+  MacPilotAgent:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Sources/MacPilotAgent
+        excludes:
+          - "Resources/**"
+    dependencies:
+      - target: SharedCore-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.MacPilotAgent
+        PRODUCT_NAME: MacPilotAgent
+
+  # ─────────────────────────────────────────────
+  # MacPilotHelper — macOS Setup & Management GUI
+  # ─────────────────────────────────────────────
+  MacPilotHelper:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/MacPilotHelper
+    resources:
+      - path: Sources/MacPilotHelper/Resources/Assets.xcassets
+    dependencies:
+      - target: SharedCore-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.MacPilotHelper
+        PRODUCT_NAME: MacPilotHelper
+        CODE_SIGN_ENTITLEMENTS: Sources/MacPilotHelper/Resources/MacPilotHelper.entitlements
+        INFOPLIST_GENERATION_MODE: GeneratedFile
+        INFOPLIST_KEY_CFBundleDisplayName: MacPilot Helper
+        INFOPLIST_KEY_LSApplicationCategoryType: "public.app-category.utilities"
+        GENERATE_INFOPLIST_FILE: true
+    entitlements:
+      path: Sources/MacPilotHelper/Resources/MacPilotHelper.entitlements
+
+  # ─────────────────────────────────────────────
+  # MacPilot-iOS — iPhone Control App
+  # ─────────────────────────────────────────────
+  MacPilot-iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources/MacPilotiOS
+    resources:
+      - path: Sources/MacPilotiOS/Resources/Assets.xcassets
+    dependencies:
+      - target: SharedCore-iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.MacPilotiOS
+        PRODUCT_NAME: MacPilot-iOS
+        INFOPLIST_GENERATION_MODE: GeneratedFile
+        INFOPLIST_KEY_CFBundleDisplayName: MacPilot
+        INFOPLIST_KEY_UILaunchScreen_Generation: true
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        GENERATE_INFOPLIST_FILE: true
+        TARGETED_DEVICE_FAMILY: "1,2"
+  # ─────────────────────────────────────────────
+  # MacPilotTests — Unit Tests
+  # ─────────────────────────────────────────────
+  MacPilotTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: Tests/MacPilotTests
+    dependencies:
+      - target: SharedCore-macOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.Tests
+        PRODUCT_NAME: MacPilotTests
+        GENERATE_INFOPLIST_FILE: true
+        CODE_SIGN_IDENTITY: "-"
+        TEST_HOST: ""
+        BUNDLE_LOADER: ""
+
+schemes:
+  MacPilotAgent:
+    build:
+      targets:
+        MacPilotAgent: all
+        SharedCore-macOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
+  MacPilotHelper:
+    build:
+      targets:
+        MacPilotHelper: all
+        SharedCore-macOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
+  MacPilot-iOS:
+    build:
+      targets:
+        MacPilot-iOS: all
+        SharedCore-iOS: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+
+  MacPilotTests:
+    build:
+      targets:
+        MacPilotTests: [test]
+        SharedCore-macOS: all
+    test:
+      config: Debug
+      targets:
+        - MacPilotTests
