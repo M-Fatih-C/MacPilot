@@ -1,7 +1,5 @@
 # MacPilot
 
-![MacPilot Logo](Docs/Branding/logo.png)
-
 MacPilot is a multi-target Apple project for local-network Mac remote control and monitoring.
 
 ## Modules
