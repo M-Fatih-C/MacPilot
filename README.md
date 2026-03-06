@@ -33,6 +33,9 @@ MacPilot provides:
 - Settings: pointer and scroll sensitivity values remain live-wired to `GestureEngine`.
 - Security UX: biometric flow has explicit fallback handling and Face ID usage description is present in app metadata.
 - Documentation: architecture diagram assets added to this README.
+- Shortcuts: media keys (`play/pause`, `next`, `previous`, `volume`, `mute`) now dispatch through a stabilized macOS system media event path.
+- Shortcuts UI: responsive layout improvements to prevent overflow on smaller iPhone screens.
+- Shortcuts UX: when not connected, the app now shows a clear "Not Connected" alert instead of silently dropping actions.
 
 ## Targets And Responsibilities
 
@@ -436,6 +439,9 @@ MacPilot su yetenekleri saglar:
 - Settings: imlec ve scroll hassasiyet ayarlari `GestureEngine` tarafina anlik uygulanmaya devam ediyor.
 - Guvenlik UX: biyometrik akista fallback senaryolari acik sekilde ele alindi ve uygulama metadata'sinda Face ID aciklamasi yer aliyor.
 - Dokumantasyon: klasorde bulunan mimari diyagramlar README'ye eklendi.
+- Shortcuts: medya tuslari (`play/pause`, `next`, `previous`, `volume`, `mute`) macOS tarafinda daha stabil sistem medya event yolu ile calisiyor.
+- Shortcuts UI: kucuk iPhone ekranlarinda metin tasmasini onleyen responsive yerlesim iyilestirmeleri eklendi.
+- Shortcuts UX: baglanti yokken aksiyonlarin sessizce dusmesi yerine acik bir "Not Connected" uyarisi gosteriliyor.
 
 ## Hedefler ve Sorumluluklar
 
