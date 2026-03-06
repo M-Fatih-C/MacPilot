@@ -14,6 +14,8 @@ struct ShortcutsView: View {
     @State private var showingConfirmation = false
     @State private var pendingAction: SystemAction?
     @State private var authFailed = false
+    private let shortcutColumns = [GridItem(.adaptive(minimum: 140), spacing: 10)]
+    private let mediaColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
     var body: some View {
         NavigationStack {
@@ -72,10 +74,7 @@ struct ShortcutsView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(icon: "keyboard", title: "Keyboard Shortcuts", color: .purple)
 
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 10) {
+            LazyVGrid(columns: shortcutColumns, spacing: 10) {
                 ShortcutButton(label: "Copy", keys: "⌘C", color: .blue) {
                     sendShortcut(.copy)
                 }
@@ -139,16 +138,13 @@ struct ShortcutsView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionHeader(icon: "music.note", title: "Media", color: .pink)
 
-            HStack(spacing: 16) {
-                MediaButton(icon: "backward.fill") { sendMediaKey(.previousTrack) }
-                MediaButton(icon: "playpause.fill") { sendMediaKey(.playPause) }
-                MediaButton(icon: "forward.fill") { sendMediaKey(.nextTrack) }
-
-                Spacer()
-
-                MediaButton(icon: "speaker.minus.fill") { sendMediaKey(.volumeDown) }
-                MediaButton(icon: "speaker.plus.fill") { sendMediaKey(.volumeUp) }
-                MediaButton(icon: "speaker.slash.fill") { sendMediaKey(.mute) }
+            LazyVGrid(columns: mediaColumns, spacing: 10) {
+                MediaButton(icon: "backward.fill", label: "Prev") { sendMediaKey(.previousTrack) }
+                MediaButton(icon: "playpause.fill", label: "Play/Pause") { sendMediaKey(.playPause) }
+                MediaButton(icon: "forward.fill", label: "Next") { sendMediaKey(.nextTrack) }
+                MediaButton(icon: "speaker.minus.fill", label: "Vol -") { sendMediaKey(.volumeDown) }
+                MediaButton(icon: "speaker.plus.fill", label: "Vol +") { sendMediaKey(.volumeUp) }
+                MediaButton(icon: "speaker.slash.fill", label: "Mute") { sendMediaKey(.mute) }
             }
             .padding(16)
             .background(
@@ -338,9 +334,13 @@ struct ShortcutButton: View {
             VStack(spacing: 6) {
                 Text(keys)
                     .font(.system(.title3, design: .monospaced, weight: .bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(color)
                 Text(label)
                     .font(.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .foregroundStyle(.white.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -372,6 +372,8 @@ struct SystemActionRow: View {
 
                 Text(action.name)
                     .font(.body)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(.white)
 
                 Spacer()
@@ -395,14 +397,29 @@ struct SystemActionRow: View {
 
 struct MediaButton: View {
     let icon: String
+    let label: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(.white.opacity(0.8))
-                .frame(width: 44, height: 44)
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(.white.opacity(0.85))
+                    .frame(width: 44, height: 44)
+
+                Text(label)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.white.opacity(0.05))
+            )
         }
     }
 }

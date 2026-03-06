@@ -6,6 +6,7 @@
 
 import Foundation
 import CoreGraphics
+import AppKit
 import SharedCore
 
 // MARK: - KeyboardController
@@ -138,6 +139,12 @@ public final class KeyboardController {
     public func processEvent(_ inputEvent: InputEvent) {
         guard let keyCode = inputEvent.data.keyCode else { return }
 
+        if let mediaKey = MediaKeyType.fromVirtualKeyCode(keyCode) {
+            let isDown = inputEvent.type == .keyDown
+            postMediaKey(mediaKey, isDown: isDown)
+            return
+        }
+
         let flags = modifierFlags(from: inputEvent.data.modifiers)
 
         switch inputEvent.type {
@@ -154,6 +161,47 @@ public final class KeyboardController {
     private func modifierFlags(from raw: UInt?) -> CGEventFlags {
         guard let raw = raw else { return [] }
         return CGEventFlags(rawValue: UInt64(raw))
+    }
+
+    private func postMediaKey(_ mediaKey: MediaKeyType, isDown: Bool) {
+        let flags = NSEvent.ModifierFlags(rawValue: 0xA00)
+        let data1 = Int((mediaKey.rawValue << 16) | (Int32(isDown ? 0xA : 0xB) << 8))
+        guard let event = NSEvent.otherEvent(
+            with: .systemDefined,
+            location: .zero,
+            modifierFlags: flags,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            subtype: 8,
+            data1: data1,
+            data2: -1
+        ) else {
+            return
+        }
+
+        event.cgEvent?.post(tap: .cghidEventTap)
+    }
+}
+
+private enum MediaKeyType: Int32 {
+    case volumeUp = 0
+    case volumeDown = 1
+    case mute = 7
+    case playPause = 16
+    case nextTrack = 17
+    case previousTrack = 18
+
+    static func fromVirtualKeyCode(_ keyCode: UInt16) -> MediaKeyType? {
+        switch keyCode {
+        case 0x64: return .playPause
+        case 0x65: return .nextTrack
+        case 0x62: return .previousTrack
+        case 0x48: return .volumeUp
+        case 0x49: return .volumeDown
+        case 0x4A: return .mute
+        default: return nil
+        }
     }
 }
 
