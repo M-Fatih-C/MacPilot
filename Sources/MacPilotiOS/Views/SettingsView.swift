@@ -9,7 +9,7 @@ import SharedCore
 // MARK: - SettingsView
 
 struct SettingsView: View {
-    @ObservedObject var connection: MacConnection
+    @ObservedObject var connection: AnyMacConnectionService
     @AppStorage("mouseSensitivity") private var mouseSensitivity: Double = 1.5
     @AppStorage("scrollSensitivity") private var scrollSensitivity: Double = 1.0
     @AppStorage("hapticFeedback") private var hapticFeedback: Bool = true
@@ -40,6 +40,10 @@ struct SettingsView: View {
             )
             .navigationTitle("Settings")
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .onAppear {
+                GestureEngine.mouseSensitivity = mouseSensitivity
+                GestureEngine.scrollSensitivity = scrollSensitivity
+            }
             .alert("Reset Device Identity", isPresented: $showResetAlert) {
                 Button("Cancel", role: .cancel) {}
                 Button("Reset", role: .destructive) {

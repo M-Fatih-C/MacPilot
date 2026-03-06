@@ -27,6 +27,13 @@ MacPilot provides:
 - local network discovery (Bonjour)
 - secure connection and device trust bootstrap
 
+## Latest Updates (2026-03-06)
+
+- Settings: `Haptic Feedback` toggle now actively controls trackpad haptic output (tap/drag/system gesture feedback).
+- Settings: pointer and scroll sensitivity values remain live-wired to `GestureEngine`.
+- Security UX: biometric flow has explicit fallback handling and Face ID usage description is present in app metadata.
+- Documentation: architecture diagram assets added to this README.
+
 ## Targets And Responsibilities
 
 | Target | Platform | Responsibility |
@@ -88,6 +95,26 @@ flowchart LR
     H --> A
     I --> A
 ```
+
+### Added Architecture Diagrams (2026-03-06)
+
+The diagrams below are compatible with the current repository structure and runtime flow:
+
+1. High-level end-to-end architecture
+
+![MacPilot Architecture](mermaid-diagram.png)
+
+2. Authentication handshake sequence
+
+![MacPilot Auth Handshake](mermaid-diagram-2.png)
+
+3. Agent router and handler split
+
+![MacPilot Message Router](mermaid-diagram-3.png)
+
+4. Repository/module structure map
+
+![MacPilot Repository Structure](mermaid-diagram-4.png)
 
 ## Network And Protocol Details
 
@@ -402,6 +429,13 @@ MacPilot su yetenekleri saglar:
 - uzaktan dosya gezgini + parcali (chunked) yukleme/indirme
 - Bonjour ile yerel ag kesfi
 - guvenli baglanti ve cihaz guven/bootstrap akisi
+
+## Son Guncellemeler (2026-03-06)
+
+- Settings: `Haptic Feedback` ayari artik trackpad tarafindaki haptic geri bildirimi dogrudan kontrol ediyor (tap/drag/sistem gesture geri bildirimi).
+- Settings: imlec ve scroll hassasiyet ayarlari `GestureEngine` tarafina anlik uygulanmaya devam ediyor.
+- Guvenlik UX: biyometrik akista fallback senaryolari acik sekilde ele alindi ve uygulama metadata'sinda Face ID aciklamasi yer aliyor.
+- Dokumantasyon: klasorde bulunan mimari diyagramlar README'ye eklendi.
 
 ## Hedefler ve Sorumluluklar
 
