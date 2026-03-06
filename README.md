@@ -1,5 +1,12 @@
 # MacPilot
 
+Language:
+
+- [English](#english)
+- [Turkce](#turkce)
+
+## English
+
 MacPilot is a multi-target Apple project that lets an iPhone control and monitor a Mac over the local network.
 
 This repository contains the **public architecture and implementation**. Private/internal security protocol documents are intentionally excluded.
@@ -369,5 +376,381 @@ Latest included report:
 - public fix roadmap: `FIX_PLAN.md`
 
 ## License
+
+TBD
+
+---
+
+## Turkce
+
+MacPilot, bir iPhone ile bir Mac'i yerel ag (LAN) uzerinden uzaktan kontrol etmeyi ve izlemeyi saglayan cok hedefli (multi-target) bir Apple projesidir.
+
+Bu repository **genel (public) mimariyi ve uygulama kodunu** icerir. Ozel/dahili guvenlik protokol dokumanlari bilerek disarida birakilmistir.
+
+## Public Kapsam
+
+- Dahil: iOS uygulamasi, macOS agent, helper uygulamasi, ortak protokol/model kodu, testler ve calistirma script'leri.
+- Haric: ozel/dahili guvenlik playbook'lari ve hassas operasyon protokolleri.
+
+## Sistem Ne Yapar
+
+MacPilot su yetenekleri saglar:
+
+- iPhone'dan Mac'e uzaktan imlec (pointer) ve klavye girdisi
+- sistem metrikleri paneli (CPU, RAM, Disk, Ag, ust surecler)
+- izinli sistem aksiyonlari icin komut kanali
+- uzaktan dosya gezgini + parcali (chunked) yukleme/indirme
+- Bonjour ile yerel ag kesfi
+- guvenli baglanti ve cihaz guven/bootstrap akisi
+
+## Hedefler ve Sorumluluklar
+
+| Hedef | Platform | Sorumluluk |
+|---|---|---|
+| `SharedCore` | iOS + macOS | Ortak protokol, kripto yardimcilari, modeller, baglanti durum makinesi |
+| `MacPilotAgent` | macOS | WSS sunucusu, kimlik dogrulama, mesaj yonlendirme, input/metric/command/file handler'lari |
+| `MacPilot-iOS` | iOS | Istemci arayuzu + canli baglanti, gesture islemleri, dashboard, kisayollar, dosyalar |
+| `MacPilotHelper` | macOS | Kurulum/onboarding arayuzu ve izin yonlendirmesi |
+| `MacPilotTests` | macOS testleri | Kripto/protokol/model/performance test kapsami |
+
+## Proje Dizini
+
+```text
+Sources/
+  SharedCore/
+    Crypto/                  # Cihaz kimligi, TLS pinning yardimcilari, session crypto
+    DeviceIdentity/          # Pairing ve trusted-device store
+    Models/                  # Input, metrics, file transfer, device info
+    Networking/              # Sabitler, connection state machine, protocol glue
+    Protocol/                # Mesaj envelope ve mesaj tipleri
+
+  MacPilotAgent/
+    Server/                  # WebSocket server + istemci baglanti yonetimi
+    Input/                   # Mouse/keyboard event uretimi (CGEvent)
+    System/                  # CPU/RAM/Disk/Network/process toplayicilari
+    FileTransfer/            # Dizin gezme + chunked transfer yonetimi
+    main.swift               # Runtime bootstrap ve merkezi message router
+
+  MacPilotiOS/
+    Services/                # Mac connection, Bonjour kesif, gestures, biometrics, transfer service
+    ViewModels/              # Trackpad ve dashboard mantigi
+    Views/                   # Home, Trackpad, Dashboard, Shortcuts, Files, Settings
+
+  MacPilotHelper/
+    Views/                   # Kurulum akisi UI
+    Services/                # Permission checker + daemon installer stublari
+
+Tests/
+  MacPilotTests/
+
+Scripts/
+  start-agent.sh
+  stop-agent.sh
+```
+
+## Uctan Uca Calisma Akisi
+
+```mermaid
+flowchart LR
+    A["iPhone App"] -->|"Bonjour _macpilot._tcp"| B["MacPilotAgent Discovery"]
+    A -->|"WSS (TLS 1.3)"| C["MacPilotAgent WebSocketServer"]
+    C --> D["Auth Challenge/Response"]
+    D --> E["Router"]
+    E --> F["InputEventProcessor -> CGEvent"]
+    E --> G["SystemMetricsCollector"]
+    E --> H["Command Executor (Allowlist)"]
+    E --> I["FileTransferManager"]
+    G --> A
+    H --> A
+    I --> A
+```
+
+## Ag ve Protokol Detaylari
+
+### Transport
+
+- `Network.framework` uzerinden WSS
+- varsayilan port: `8443`
+- Bonjour service type: `_macpilot._tcp`
+- app path sabiti: `/ws`
+
+### Mesaj Modeli
+
+Tum mesajlar `MessageEnvelope` ve `MessageType` ile tasinir.
+
+`MessageType` gruplari:
+
+- Auth/Pairing: `pairRequest`, `pairResponse`, `authChallenge`, `authResponse`, `ephemeralKeyExchange`
+- Input: `mouseMove`, `mouseClick`, `mouseScroll`, `keyPress`, `keyRelease`
+- Metrics: `metricsRequest`, `metricsResponse`, `processListRequest`, `processListResponse`
+- Command: `commandRequest`, `commandResponse`
+- File: `fileBrowseRequest`, `fileBrowseResponse`, `fileDownloadRequest`, `fileDownloadChunk`, `fileUploadStart`, `fileUploadChunk`, `fileUploadAck`
+- Control: `ping`, `pong`, `error`
+
+### Kodlama (Encode/Decode) Pipeline'i
+
+`SharedCore/Networking/MessageProtocol.swift` su akislarin ikisini de destekler:
+
+- plaintext envelope (`encodePlaintext`, `decodePlaintext`)
+- AES-256-GCM sifreli envelope (`encode`, `decode`) ve `SessionCrypto`
+
+Mevcut runtime davranisi:
+
+- auth ve uygulama seviyesi router su anda `encodePlaintext`/`decodePlaintext` kullaniyor
+- sifreli envelope pipeline kodda ve testlerde hazir; runtime'da tam devreye alinabilir
+
+## Guvenlik Modeli (Public)
+
+### 1) TLS + Certificate Pinning
+
+- Sunucu, TLS kimligini olusturur/yukler ve WSS (minimum TLS 1.3) yayina alir
+- Istemci verify block ile sunucu public key'i cikarir ve fingerprint pinler (TOFU)
+- sonraki baglantilarda pinned fingerprint eslesmesi zorunludur
+
+### 2) Cihaz Kimligi + Cift Yonlu Imza Handshake
+
+- her cihazda P256 signing kimligi vardir (`DeviceIdentity`)
+- handshake akisi:
+  1. Mac, rastgele challenge ile `authChallenge` (`ServerHello`) yollar
+  2. iPhone challenge'i imzalayip kendi challenge'i ile `authResponse` (`AuthRequest`) yollar
+  3. Mac istemci imzasini dogrular ve istemci challenge'ini imzalayip `AuthResponse` yollar
+  4. iPhone sunucu imzasini dogrular ve gerekirse trusted store'a kaydeder
+
+### 3) Trusted Device Kayitlari
+
+- guvenilen cihazlar keychain tabanli `TrustedDeviceStore`'da tutulur
+- ilk gorulmede peer public key bootstrap olarak kaydedilir
+- sonraki baglantilarda key tutarliligi zorunludur (uyusmazlik reddedilir)
+
+### 4) Hassas Islem Kontrolleri
+
+- iOS tarafi yikici/islem riski yuksek aksiyonlari biyometrik dogrulama ile korur
+- agent komut kanali allowlist kullanir ve bu build'de `runScript` kapatilidir
+- yikici komutlar (`shutdown`, `restart`, `sleep`) icin agent tarafinda ek olarak `MACPILOT_ALLOW_DESTRUCTIVE=1` gerekir
+
+## iOS Uygulamasi: Ekran Bazli
+
+`MainTabView` su ekranlari yukler:
+
+- Home
+- Trackpad
+- Dashboard
+- Shortcuts
+- Files
+- Settings
+
+### Home
+
+- `ConnectionStateMachine` durumunu gosterir
+- `Scan Network` ile Bonjour taramasi baslatir
+- bulunan Mac endpoint'lerini listeler ve baglanma aksiyonu verir
+- `BrandLogo` asset'ini kullanir
+
+### Trackpad
+
+Trackpad gesture yuzeyi iPhone gesture'larini `InputEvent`e cevirip baglantiya yollar.
+
+Gesture eslesmesi:
+
+| iPhone Gesture | iOS Event(leri) | Agent Aksiyonu |
+|---|---|---|
+| 1 parmak surukleme | `mouseMove` | imlec hareketi |
+| 1 parmak tek dokunus | `leftClick` | sol tik |
+| 1 parmak cift dokunus | 2x `leftClick` | cift tik |
+| 2 parmak dokunus | `rightClick` | sag tik |
+| 2 parmak cift dokunus | 2x `leftClick` | smart zoom benzeri cift tik |
+| 2 parmak kaydirma | `scroll` | ataletli kaydirma |
+| pinch | `pinchZoom` | zoom simulasyonu |
+| 3 parmak dokunus | key combo | macOS Look Up (`Ctrl+Cmd+D`) |
+| 3 parmak surukleme | `leftDown` + hareket + `leftUp` | drag & drop |
+| 4 parmak swipe sol/sag/yukari/asagi | key combo | spaces / mission control benzeri kisayollar |
+| 4 parmak pinch in/out | key press | launchpad (`F4`) / desktop (`F11`) |
+
+`TrackpadViewModel` tarafindaki ince ayarlar:
+
+- hiza bagli dinamik acceleration
+- pointer/scroll icin low-pass smoothing
+- deadzone filtreleme
+- scroll momentum (inertia) azalimi
+
+### Dashboard
+
+- `NetworkConstants.metricsRefreshInterval` ile her `3` saniyede metrik ister
+- CPU/RAM/Disk/Network kartlari ve top process listesini gosterir
+- `metricsResponse` ile guncellenir
+
+### Shortcuts
+
+- klavye kisayollarini ve media tuslarini yollar
+- sistem komutlari yollar (`shutdown`, `restart`, `sleep`, `lock`, `emptyTrash`, `runScript`)
+- hassas aksiyonlarda biyometrik dogrulama ister
+
+### Files
+
+- `fileBrowseRequest`/`fileBrowseResponse` ile dizin gezer
+- `fileDownloadChunk` ile parcali indirme alir
+- upload servisinde chunk + checksum akisi vardir
+- UI tarafinda breadcrumb, refresh ve klasor gecisi vardir
+
+### Settings
+
+- baglanti durumu ve port gosterimi
+- mouse/scroll hassasiyet ayarlari (`AppStorage` + `GestureEngine`)
+- haptic ayari
+- guvenlik ozet bilgileri
+- kimlik sifirlama (device identity, cert pin, trusted devices temizligi)
+
+## MacPilotAgent Ic Yapisi
+
+### Server Katmani
+
+- `WebSocketServer` `8443` portunda dinler
+- Bonjour servis adi: `MacPilot`
+- tek aktif istemci modeli (yeni istemci eskisini degistirir)
+- `ClientConnection` ile ping/pong keepalive
+
+### Mesaj Router (`main.swift`)
+
+Kimligi dogrulanmis mesaj dagitimi:
+
+- input -> `InputEventProcessor`
+- metrics -> `SystemMetricsCollector`
+- command -> `executeCommand` allowlist handler
+- file browse/download/upload -> `FileTransferManager`
+- ping -> pong
+
+Auth tamamlanmadan gelen uygulama mesajlari reddedilir.
+
+### Input Pipeline
+
+- `InputEventProcessor` token-bucket limiti: `200 event/s`
+- `.userInteractive` QoS queue
+- `MouseController` -> `CGEvent` ile move/click/scroll/zoom
+- `KeyboardController` -> `CGEvent` ile keyDown/keyUp + kisayollar
+- macOS Accessibility izni gerektirir
+
+### Metrics Pipeline
+
+`SystemMetricsCollector` veri kaynaklari:
+
+- CPU: `host_statistics`
+- Memory: `host_statistics64` + swap
+- Disk: `statfs`
+- Network: `getifaddrs`
+- Process: `ProcessMonitor` (`sysctl`, `proc_pidinfo`)
+
+### Command Kanali
+
+Allowlist komutlari:
+
+- `shutdown`
+- `restart`
+- `sleep`
+- `lock`
+- `emptyTrash`
+
+Ozel davranislar:
+
+- `runScript` bu build'de bilerek kapatilmistir
+- allowlist disi komutlar reddedilir
+
+### File Pipeline
+
+- dizin gezer ve `FileItem[]` doner
+- chunk boyutu: `256 KB`
+- max dosya boyutu: `500 MB`
+- upload chunk'larinda checksum dogrulanir
+- browse'da gizli dosyalar atlanir
+
+## Uygulama Runtime Modlari (Dependency Injection)
+
+`AppEnvironment` baglanti backend'ini secer:
+
+- `.live` -> `RealMacConnection` (`MacConnection`)
+- `.demo` -> `MockMacConnection`
+
+Varsayilan mod su anda `.live`.
+
+`MockMacConnection`, lokal demo akisi icin kodda durur ve sentetik metrics/command/file cevaplari dondurur.
+
+## Derleme, Test ve Calistirma
+
+### Gereksinimler
+
+- macOS 14+
+- Xcode 16+
+- iOS 17+ SDK
+
+### Derleme Komutlari
+
+```bash
+# macOS hedefleri
+xcodebuild build -project MacPilot.xcodeproj -scheme MacPilotAgent -destination 'platform=macOS'
+xcodebuild build -project MacPilot.xcodeproj -scheme MacPilotHelper -destination 'platform=macOS'
+
+# iOS hedefi (simulator)
+xcodebuild build -project MacPilot.xcodeproj -scheme MacPilot-iOS -destination 'generic/platform=iOS Simulator'
+
+# testler
+xcodebuild test -project MacPilot.xcodeproj -scheme MacPilotTests -destination 'platform=macOS'
+```
+
+### Agent Baslatma/Durdurma
+
+```bash
+./Scripts/start-agent.sh
+./Scripts/stop-agent.sh
+```
+
+`start-agent.sh` su adimlari yapar:
+
+- `MacPilotAgent` derler
+- `TARGET_BUILD_DIR` degerini bulur
+- `8443` portunu kontrol eder
+- agent'i gerekli framework path'leri ile calistirir
+
+### Ilk Kurulum Kontrol Listesi (Mac + iPhone)
+
+1. Mac'te `MacPilotAgent` calistir.
+2. Mac'te, agent'i calistiran surece (`Terminal` veya `Xcode`) Accessibility izni ver.
+3. iPhone veya simulator'da `MacPilot-iOS` calistir.
+4. iOS tarafinda Local Network iznini kabul et.
+5. Iki cihazin ayni LAN'da oldugunu dogrula.
+6. Uygulamada: `Home -> Scan Network -> select Mac`.
+
+### Test Kapsami Ozeti
+
+`MacPilotTests` su alanlari kapsar:
+
+- cihaz kimligi ve imza dogrulama testleri
+- X25519/AES session crypto akisi
+- mesaj envelope/type round-trip testleri
+- handshake model simulasyonlari
+- sabitler ve serialization testleri
+- input encoding latency/performance testleri
+- file transfer model/checksum/chunk mantigi testleri
+
+### Smoke Test Raporu
+
+Repoda bulunan son rapor:
+
+- `Docs/SMOKE_TEST_2026-03-06.md`
+- tarih: **2026-03-06**
+- sonuc: baglanti, auth handshake, metrics, input, command kanali ve file browse icin **PASS**
+
+## Bilinen Sinirlar / Acik Isler
+
+- `MacPilotHelper/Services/DaemonInstaller.swift` icindeki metotlar scaffold (`TODO`) seviyesinde; tam uygulanmadi.
+- `NetworkRestriction` yardimcisi mevcut ama listener akisinda dogrudan enforce edilmiyor.
+- Sifreli envelope runtime yolu (`MessageProtocol.encode/decode`) hazir; aktif mesaj akisinda su an plaintext kullaniliyor.
+- `runScript` komutu bu build'de bilerek kapatildi.
+- Sunucu su anda tek aktif istemci baglantisi destekliyor.
+
+## Public Dokumanlar
+
+- Mimari ozet: `ARCHITECTURE_PUBLIC.md`
+- public duzeltme yol haritasi: `FIX_PLAN.md`
+
+## Lisans
 
 TBD
