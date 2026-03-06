@@ -9,7 +9,7 @@ import SharedCore
 // MARK: - ShortcutsView
 
 struct ShortcutsView: View {
-    @ObservedObject var connection: MacConnection
+    @ObservedObject var connection: AnyMacConnectionService
     @StateObject private var biometricAuth = BiometricAuth.shared
     @State private var showingConfirmation = false
     @State private var pendingAction: SystemAction?
@@ -164,17 +164,7 @@ struct ShortcutsView: View {
 
     private func sendShortcut(_ shortcut: KeyboardShortcut) {
         guard connection.isConnected else { return }
-        let event = GestureEngine.keyEvent(
-            keyCode: shortcut.keyCode,
-            modifiers: shortcut.modifiers,
-            isDown: true
-        )
-        do {
-            let data = try MessageProtocol.encodePlaintext(event, type: .keyPress)
-            connection.send(data)
-        } catch {
-            print("[MacPilot][Shortcuts] Send failed: \(error)")
-        }
+        sendKeyPress(keyCode: shortcut.keyCode, modifiers: shortcut.modifiers)
     }
 
     /// Authenticate via FaceID then execute the action.
@@ -211,12 +201,29 @@ struct ShortcutsView: View {
 
     private func sendMediaKey(_ key: MediaKey) {
         guard connection.isConnected else { return }
-        let event = GestureEngine.keyEvent(keyCode: key.keyCode, isDown: true)
+        sendKeyPress(keyCode: key.keyCode)
+    }
+
+    private func sendKeyPress(keyCode: UInt16, modifiers: UInt = 0) {
         do {
-            let data = try MessageProtocol.encodePlaintext(event, type: .keyPress)
-            connection.send(data)
+            let downEvent = GestureEngine.keyEvent(
+                keyCode: keyCode,
+                modifiers: modifiers,
+                isDown: true
+            )
+            let upEvent = GestureEngine.keyEvent(
+                keyCode: keyCode,
+                modifiers: modifiers,
+                isDown: false
+            )
+
+            let downData = try MessageProtocol.encodePlaintext(downEvent, type: .keyPress)
+            let upData = try MessageProtocol.encodePlaintext(upEvent, type: .keyRelease)
+
+            connection.send(downData)
+            connection.send(upData)
         } catch {
-            print("[MacPilot][Shortcuts] Media key failed: \(error)")
+            print("[MacPilot][Shortcuts] Key send failed: \(error)")
         }
     }
 }
@@ -275,9 +282,10 @@ enum MediaKey {
 
     var keyCode: UInt16 {
         switch self {
-        case .playPause: return 0xF8 >> 1
-        case .nextTrack: return 0xF9 >> 1
-        case .previousTrack: return 0xF7 >> 1
+        // Apple keyboard media keys map to F7/F8/F9 virtual key codes.
+        case .playPause: return 0x64   // F8
+        case .nextTrack: return 0x65   // F9
+        case .previousTrack: return 0x62 // F7
         case .volumeUp: return 0x48
         case .volumeDown: return 0x49
         case .mute: return 0x4A
