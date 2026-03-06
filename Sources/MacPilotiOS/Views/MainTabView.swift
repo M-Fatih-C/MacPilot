@@ -16,7 +16,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(connection: connection, bonjourBrowser: bonjourBrowser)
+            HomeView(connection: connection, bonjourBrowser: bonjourBrowser, selectedTab: $selectedTab)
                 .tabItem {
                     Label("Home", systemImage: "house.fill")
                 }

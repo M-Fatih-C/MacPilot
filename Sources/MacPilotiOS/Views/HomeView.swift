@@ -11,6 +11,7 @@ import SharedCore
 struct HomeView: View {
     @ObservedObject var connection: AnyMacConnectionService
     @ObservedObject var bonjourBrowser: BonjourBrowser
+    @Binding var selectedTab: Tab
 
     var body: some View {
         NavigationStack {
@@ -127,12 +128,24 @@ struct HomeView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible())
             ], spacing: 12) {
-                QuickActionButton(icon: "cursorarrow.motionlines", label: "Trackpad", color: .blue)
-                QuickActionButton(icon: "keyboard", label: "Keyboard", color: .purple)
-                QuickActionButton(icon: "gauge.with.dots.needle.bottom.50percent", label: "Dashboard", color: .green)
-                QuickActionButton(icon: "bolt.fill", label: "Shortcuts", color: .orange)
-                QuickActionButton(icon: "folder.fill", label: "Files", color: .cyan)
-                QuickActionButton(icon: "gearshape.fill", label: "Settings", color: .gray)
+                QuickActionButton(icon: "cursorarrow.motionlines", label: "Trackpad", color: .blue) {
+                    selectedTab = .trackpad
+                }
+                QuickActionButton(icon: "keyboard", label: "Keyboard", color: .purple) {
+                    selectedTab = .shortcuts
+                }
+                QuickActionButton(icon: "gauge.with.dots.needle.bottom.50percent", label: "Dashboard", color: .green) {
+                    selectedTab = .dashboard
+                }
+                QuickActionButton(icon: "bolt.fill", label: "Shortcuts", color: .orange) {
+                    selectedTab = .shortcuts
+                }
+                QuickActionButton(icon: "folder.fill", label: "Files", color: .cyan) {
+                    selectedTab = .files
+                }
+                QuickActionButton(icon: "gearshape.fill", label: "Settings", color: .gray) {
+                    selectedTab = .settings
+                }
             }
         }
     }
@@ -253,26 +266,30 @@ struct QuickActionButton: View {
     let icon: String
     let label: String
     let color: Color
+    let action: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundStyle(color)
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(color)
 
-            Text(label)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.8))
+                Text(label)
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(.white.opacity(0.06))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(color.opacity(0.2), lineWidth: 1)
+                    )
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.white.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14)
-                        .strokeBorder(color.opacity(0.2), lineWidth: 1)
-                )
-        )
+        .buttonStyle(.plain)
     }
 }
