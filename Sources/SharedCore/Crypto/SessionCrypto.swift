@@ -96,7 +96,7 @@ public final class SessionCrypto {
 
         let sealedBox = try AES.GCM.seal(plaintext, using: key)
 
-        guard let combined = sealedBox.combined else {
+        guard sealedBox.combined != nil else {
             throw SessionCryptoError.encryptionFailed
         }
 

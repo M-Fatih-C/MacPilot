@@ -15,6 +15,7 @@ import SharedCore
 /// ```
 /// 1 finger drag   → mouseMove (deltaX, deltaY)
 /// single tap       → leftClick
+/// double tap       → double left click
 /// two finger tap   → rightClick
 /// two finger drag  → scroll (deltaX, deltaY)
 /// pinch            → pinchZoom (scale)
@@ -25,10 +26,14 @@ public enum GestureEngine {
 
     /// Mouse movement sensitivity multiplier.
     /// Higher values = faster cursor movement per finger distance.
-    public static var mouseSensitivity: Double = 1.5
+    public static var mouseSensitivity: Double = {
+        UserDefaults.standard.object(forKey: "mouseSensitivity") as? Double ?? 1.5
+    }()
 
     /// Scroll sensitivity multiplier.
-    public static var scrollSensitivity: Double = 1.0
+    public static var scrollSensitivity: Double = {
+        UserDefaults.standard.object(forKey: "scrollSensitivity") as? Double ?? 1.0
+    }()
 
     // MARK: - Mouse Movement
 
@@ -54,6 +59,22 @@ public enum GestureEngine {
     public static func leftClick() -> InputEvent {
         InputEvent(
             type: .leftClick,
+            data: InputEventData()
+        )
+    }
+
+    /// Create a left button down event for drag-and-drop.
+    public static func leftDown() -> InputEvent {
+        InputEvent(
+            type: .leftDown,
+            data: InputEventData()
+        )
+    }
+
+    /// Create a left button up event for drag-and-drop.
+    public static func leftUp() -> InputEvent {
+        InputEvent(
+            type: .leftUp,
             data: InputEventData()
         )
     }

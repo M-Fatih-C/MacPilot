@@ -109,11 +109,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.macpilot.MacPilotiOS
         PRODUCT_NAME: MacPilot-iOS
-        INFOPLIST_GENERATION_MODE: GeneratedFile
-        INFOPLIST_KEY_CFBundleDisplayName: MacPilot
-        INFOPLIST_KEY_UILaunchScreen_Generation: true
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_FILE: Sources/MacPilotiOS/Info.plist
+        GENERATE_INFOPLIST_FILE: false
         TARGETED_DEVICE_FAMILY: "1,2"
   # ─────────────────────────────────────────────
   # MacPilotTests — Unit Tests

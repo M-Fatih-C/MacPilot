@@ -4,6 +4,9 @@
 // Cross-platform core logic shared between macOS and iOS targets.
 
 import Foundation
+#if canImport(AppIntents)
+import AppIntents
+#endif
 
 /// Top-level namespace for all shared functionality.
 public enum SharedCore {

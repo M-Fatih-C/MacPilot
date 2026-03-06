@@ -43,6 +43,9 @@ struct ShortcutsView: View {
             )
             .navigationTitle("Shortcuts")
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .onAppear {
+                biometricAuth.checkAvailability()
+            }
             .alert("Confirm Action", isPresented: $showingConfirmation) {
                 Button("Cancel", role: .cancel) {}
                 Button("Execute", role: .destructive) {

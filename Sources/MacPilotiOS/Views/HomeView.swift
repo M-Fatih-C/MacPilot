@@ -9,7 +9,7 @@ import SharedCore
 // MARK: - HomeView
 
 struct HomeView: View {
-    @ObservedObject var connection: MacConnection
+    @ObservedObject var connection: AnyMacConnectionService
     @ObservedObject var bonjourBrowser: BonjourBrowser
 
     var body: some View {

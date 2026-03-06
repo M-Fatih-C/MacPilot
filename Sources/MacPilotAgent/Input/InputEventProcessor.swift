@@ -100,6 +100,12 @@ public final class InputEventProcessor {
         case .leftClick:
             mouseController.leftClick()
 
+        case .leftDown:
+            mouseController.leftDown()
+
+        case .leftUp:
+            mouseController.leftUp()
+
         case .rightClick:
             mouseController.rightClick()
 

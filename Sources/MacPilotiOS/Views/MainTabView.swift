@@ -9,7 +9,7 @@ import SharedCore
 // MARK: - MainTabView
 
 struct MainTabView: View {
-    @StateObject private var connection = MacConnection()
+    @StateObject private var connection = AppEnvironment.makeConnectionService()
     @StateObject private var bonjourBrowser = BonjourBrowser()
 
     @State private var selectedTab: Tab = .home
@@ -54,6 +54,11 @@ struct MainTabView: View {
         }
         .tint(.blue)
         .preferredColorScheme(.dark)
+        .onAppear {
+            connection.onMessageReceived = { data in
+                NotificationCenter.default.post(name: .macPilotMessageReceived, object: data)
+            }
+        }
     }
 }
 

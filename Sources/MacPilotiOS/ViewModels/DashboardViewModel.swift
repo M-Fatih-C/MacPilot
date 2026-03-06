@@ -69,13 +69,24 @@ public final class DashboardViewModel: ObservableObject {
 
     // MARK: - Properties
 
-    private let connection: MacConnection
+    private let connection: AnyMacConnectionService
     private var refreshTimer: Timer?
+    private var messageCancellable: AnyCancellable?
 
     // MARK: - Init
 
-    public init(connection: MacConnection) {
+    public init(connection: AnyMacConnectionService) {
         self.connection = connection
+        self.messageCancellable = NotificationCenter.default
+            .publisher(for: .macPilotMessageReceived)
+            .compactMap { $0.object as? Data }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] data in
+                guard let type = try? MessageProtocol.peekType(data), type == .metricsResponse else {
+                    return
+                }
+                self?.handleMetricsResponse(data)
+            }
     }
 
     // MARK: - Start / Stop

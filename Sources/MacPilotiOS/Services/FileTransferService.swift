@@ -22,13 +22,27 @@ public final class FileTransferService: ObservableObject {
 
     // MARK: - Properties
 
-    private let connection: MacConnection
+    private let connection: AnyMacConnectionService
     private let chunkSize = NetworkConstants.fileChunkSize
+    private var messageCancellable: AnyCancellable?
 
     // MARK: - Init
 
-    public init(connection: MacConnection) {
+    public init(connection: AnyMacConnectionService) {
         self.connection = connection
+        self.messageCancellable = NotificationCenter.default
+            .publisher(for: .macPilotMessageReceived)
+            .compactMap { $0.object as? Data }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] data in
+                guard let type = try? MessageProtocol.peekType(data), type == .fileDownloadChunk else {
+                    return
+                }
+                guard let (_, chunk) = try? MessageProtocol.decodePlaintext(data, as: FileChunk.self) else {
+                    return
+                }
+                self?.handleDownloadChunk(chunk)
+            }
     }
 
     // MARK: - Download (Mac → iPhone)

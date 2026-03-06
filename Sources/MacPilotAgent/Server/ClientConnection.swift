@@ -30,6 +30,9 @@ public final class ClientConnection {
     /// Callback when a complete WebSocket message is received.
     public var onMessageReceived: ((Data) -> Void)?
 
+    /// Callback when the WebSocket connection becomes ready.
+    public var onReady: (() -> Void)?
+
     /// Callback when the connection is lost or closed.
     public var onDisconnected: (() -> Void)?
 
@@ -163,6 +166,7 @@ public final class ClientConnection {
         case .ready:
             isConnected = true
             log("Connection", "Client \(id) connected")
+            onReady?()
             receiveMessage()
             startPingTimer()
 

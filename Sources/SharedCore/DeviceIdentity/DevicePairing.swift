@@ -111,9 +111,17 @@ public struct ServerHello: Codable, Sendable {
     /// Random challenge for the iPhone to sign.
     public let challenge: Data
 
-    public init(deviceId: UUID, challenge: Data = Self.generateChallenge()) {
+    /// Optional Mac public key (used for trust bootstrap/verification).
+    public let publicKey: Data?
+
+    public init(
+        deviceId: UUID,
+        challenge: Data = Self.generateChallenge(),
+        publicKey: Data? = nil
+    ) {
         self.deviceId = deviceId
         self.challenge = challenge
+        self.publicKey = publicKey
     }
 
     /// Generate a 32-byte random challenge.
@@ -135,10 +143,19 @@ public struct AuthRequest: Codable, Sendable {
     /// Counter-challenge for the Mac to sign (mutual auth).
     public let challenge: Data
 
-    public init(deviceId: UUID, signature: Data, challenge: Data = ServerHello.generateChallenge()) {
+    /// Optional iPhone public key (TOFU bootstrap when device is not yet trusted).
+    public let publicKey: Data?
+
+    public init(
+        deviceId: UUID,
+        signature: Data,
+        challenge: Data = ServerHello.generateChallenge(),
+        publicKey: Data? = nil
+    ) {
         self.deviceId = deviceId
         self.signature = signature
         self.challenge = challenge
+        self.publicKey = publicKey
     }
 }
 

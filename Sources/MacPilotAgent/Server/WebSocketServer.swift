@@ -92,6 +92,13 @@ public final class WebSocketServer {
         // Configure TLS 1.3
         let securityOptions = tlsOptions.securityProtocolOptions
         sec_protocol_options_set_min_tls_protocol_version(securityOptions, .TLSv13)
+        #if os(macOS)
+        let identity = try CertificateManager.shared.getOrCreateServerIdentity()
+        guard let secIdentity = sec_identity_create(identity) else {
+            throw WebSocketServerError.tlsIdentityUnavailable
+        }
+        sec_protocol_options_set_local_identity(securityOptions, secIdentity)
+        #endif
 
         // WebSocket protocol on top of TLS
         let wsOptions = NWProtocolWebSocket.Options()
@@ -100,9 +107,6 @@ public final class WebSocketServer {
 
         let parameters = NWParameters(tls: tlsOptions)
         parameters.defaultProtocolStack.applicationProtocols.insert(wsOptions, at: 0)
-
-        // Allow local network only
-        parameters.requiredInterfaceType = .wifi
 
         return parameters
     }
@@ -129,13 +133,6 @@ public final class WebSocketServer {
     }
 
     private func handleNewConnection(_ nwConnection: NWConnection) {
-        // Enforce IP restriction
-        guard NetworkRestriction.isAllowed(connection: nwConnection) else {
-            log("Server", "Rejected connection from non-local IP")
-            nwConnection.cancel()
-            return
-        }
-
         // Only allow one active connection (single iPhone)
         if let existing = activeConnection {
             log("Server", "Replacing existing connection")
@@ -148,6 +145,11 @@ public final class WebSocketServer {
             self?.onMessageReceived?(data, client)
         }
 
+        client.onReady = { [weak self] in
+            log("Server", "Client ready \(client.id)")
+            self?.onClientConnected?(client)
+        }
+
         client.onDisconnected = { [weak self] in
             self?.activeConnection = nil
             self?.onClientDisconnected?()
@@ -157,7 +159,6 @@ public final class WebSocketServer {
         client.start()
 
         log("Server", "New client connected from \(nwConnection.endpoint)")
-        onClientConnected?(client)
     }
 }
 
@@ -167,4 +168,8 @@ func log(_ module: String, _ message: String) {
     let formatter = ISO8601DateFormatter()
     let timestamp = formatter.string(from: Date())
     print("[\(timestamp)][MacPilot][\(module)] \(message)")
+}
+
+private enum WebSocketServerError: Error {
+    case tlsIdentityUnavailable
 }

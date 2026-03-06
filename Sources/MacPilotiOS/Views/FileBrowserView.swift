@@ -4,16 +4,29 @@
 // File browser for navigating and transferring files on the Mac.
 
 import SwiftUI
+import Combine
+import UniformTypeIdentifiers
 import SharedCore
 
 // MARK: - FileBrowserView
 
 struct FileBrowserView: View {
-    @ObservedObject var connection: MacConnection
+    @ObservedObject var connection: AnyMacConnectionService
     @StateObject private var viewModel = FileViewModel()
+    @StateObject private var transferService: FileTransferService
     @StateObject private var biometricAuth = BiometricAuth.shared
     @State private var showUploadPicker = false
     @State private var authFailed = false
+    @State private var authErrorMessage = "File upload requires biometric authentication."
+    @State private var uploadMessage: String?
+    @State private var showUploadMessage = false
+
+    init(connection: AnyMacConnectionService) {
+        self.connection = connection
+        _transferService = StateObject(
+            wrappedValue: FileTransferService(connection: connection)
+        )
+    }
 
     var body: some View {
         NavigationStack {
@@ -64,12 +77,24 @@ struct FileBrowserView: View {
                 }
             }
             .onAppear {
+                biometricAuth.checkAvailability()
                 viewModel.browse(path: "~", connection: connection)
+            }
+            .fileImporter(
+                isPresented: $showUploadPicker,
+                allowedContentTypes: [UTType.data]
+            ) { result in
+                handleUploadSelection(result)
             }
             .alert("Authentication Failed", isPresented: $authFailed) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("File upload requires biometric authentication.")
+                Text(authErrorMessage)
+            }
+            .alert("Upload", isPresented: $showUploadMessage) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(uploadMessage ?? "Upload status unavailable.")
             }
         }
     }
@@ -150,12 +175,48 @@ struct FileBrowserView: View {
     // MARK: - FaceID Upload
 
     private func authenticateAndUpload() async {
+        guard connection.isConnected else {
+            authErrorMessage = "Connect to your Mac first."
+            authFailed = true
+            return
+        }
+
         let authenticated = await biometricAuth.authenticateForFileUpload()
         if authenticated {
             showUploadPicker = true
         } else {
+            authErrorMessage = "Biometric or passcode authentication failed. Upload was cancelled."
             authFailed = true
         }
+    }
+
+    private func handleUploadSelection(_ result: Result<URL, Error>) {
+        switch result {
+        case .success(let fileURL):
+            Task {
+                await uploadSelectedFile(fileURL)
+            }
+        case .failure(let error):
+            uploadMessage = "File selection failed: \(error.localizedDescription)"
+            showUploadMessage = true
+        }
+    }
+
+    private func uploadSelectedFile(_ fileURL: URL) async {
+        let secured = fileURL.startAccessingSecurityScopedResource()
+        defer {
+            if secured {
+                fileURL.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        await transferService.uploadFile(
+            fileURL: fileURL,
+            destinationPath: viewModel.currentPath
+        )
+
+        uploadMessage = "Upload started: \(fileURL.lastPathComponent)"
+        showUploadMessage = true
     }
 }
 
@@ -233,6 +294,20 @@ class FileViewModel: ObservableObject {
     @Published var files: [FileItem] = []
     @Published var currentPath: String = "~"
     @Published var isLoading: Bool = false
+    private var messageCancellable: AnyCancellable?
+
+    init() {
+        self.messageCancellable = NotificationCenter.default
+            .publisher(for: .macPilotMessageReceived)
+            .compactMap { $0.object as? Data }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] data in
+                guard let type = try? MessageProtocol.peekType(data), type == .fileBrowseResponse else {
+                    return
+                }
+                self?.handleBrowseResponse(data)
+            }
+    }
 
     var pathComponents: [String] {
         currentPath.split(separator: "/").map(String.init)
@@ -242,7 +317,7 @@ class FileViewModel: ObservableObject {
         currentPath != "/" && currentPath != "~"
     }
 
-    func browse(path: String, connection: MacConnection) {
+    func browse(path: String, connection: AnyMacConnectionService) {
         currentPath = path
         isLoading = true
 
@@ -261,16 +336,16 @@ class FileViewModel: ObservableObject {
         }
     }
 
-    func goBack(connection: MacConnection) {
+    func goBack(connection: AnyMacConnectionService) {
         let parent = (currentPath as NSString).deletingLastPathComponent
         browse(path: parent, connection: connection)
     }
 
-    func refresh(connection: MacConnection) {
+    func refresh(connection: AnyMacConnectionService) {
         browse(path: currentPath, connection: connection)
     }
 
-    func navigateToComponent(_ component: String, connection: MacConnection) {
+    func navigateToComponent(_ component: String, connection: AnyMacConnectionService) {
         guard let index = pathComponents.firstIndex(of: component) else { return }
         let path = "/" + pathComponents.prefix(through: index).joined(separator: "/")
         browse(path: path, connection: connection)

@@ -48,7 +48,7 @@ public final class DeviceIdentity: Sendable {
 
         if SecureEnclave.isAvailable {
             // Secure Enclave: key is hardware-bound
-            privateKey = try P256.Signing.PrivateKey(
+            privateKey = P256.Signing.PrivateKey(
                 compactRepresentable: false
             )
         } else {

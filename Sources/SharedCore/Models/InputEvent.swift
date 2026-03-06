@@ -32,6 +32,12 @@ public enum InputEventType: String, Codable, Sendable {
     /// Left mouse click (single tap).
     case leftClick
 
+    /// Left mouse button down (used for drag-and-drop).
+    case leftDown
+
+    /// Left mouse button up (used for drag-and-drop).
+    case leftUp
+
     /// Right mouse click (two finger tap).
     case rightClick
 

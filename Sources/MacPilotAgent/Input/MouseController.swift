@@ -91,6 +91,16 @@ public final class MouseController {
         mouseUp(.left)
     }
 
+    /// Press and hold the left mouse button.
+    public func leftDown() {
+        mouseDown(.left)
+    }
+
+    /// Release the left mouse button.
+    public func leftUp() {
+        mouseUp(.left)
+    }
+
     /// Perform a right mouse click at the current position.
     public func rightClick() {
         mouseDown(.right)
@@ -204,6 +214,10 @@ public final class MouseController {
             }
         case .leftClick:
             leftClick()
+        case .leftDown:
+            leftDown()
+        case .leftUp:
+            leftUp()
         case .rightClick:
             rightClick()
         case .scroll:
