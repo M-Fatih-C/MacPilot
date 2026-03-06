@@ -164,23 +164,33 @@ public final class KeyboardController {
     }
 
     private func postMediaKey(_ mediaKey: MediaKeyType, isDown: Bool) {
-        let flags = NSEvent.ModifierFlags(rawValue: 0xA00)
-        let data1 = Int((mediaKey.rawValue << 16) | (Int32(isDown ? 0xA : 0xB) << 8))
-        guard let event = NSEvent.otherEvent(
-            with: .systemDefined,
-            location: .zero,
-            modifierFlags: flags,
-            timestamp: 0,
-            windowNumber: 0,
-            context: nil,
-            subtype: 8,
-            data1: data1,
-            data2: -1
-        ) else {
-            return
+        let emit: () -> Void = {
+            let flags = NSEvent.ModifierFlags(rawValue: 0xA00)
+            let data1 = Int((mediaKey.rawValue << 16) | (Int32(isDown ? 0xA : 0xB) << 8))
+            guard let event = NSEvent.otherEvent(
+                with: .systemDefined,
+                location: .zero,
+                modifierFlags: flags,
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                subtype: 8,
+                data1: data1,
+                data2: -1
+            ) else {
+                return
+            }
+
+            guard let cgEvent = event.cgEvent else { return }
+            cgEvent.post(tap: .cghidEventTap)
+            cgEvent.post(tap: .cgSessionEventTap)
         }
 
-        event.cgEvent?.post(tap: .cghidEventTap)
+        if Thread.isMainThread {
+            emit()
+        } else {
+            DispatchQueue.main.sync(execute: emit)
+        }
     }
 }
 

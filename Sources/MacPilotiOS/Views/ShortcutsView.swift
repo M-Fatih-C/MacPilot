@@ -14,6 +14,7 @@ struct ShortcutsView: View {
     @State private var showingConfirmation = false
     @State private var pendingAction: SystemAction?
     @State private var authFailed = false
+    @State private var showConnectionAlert = false
     private let shortcutColumns = [GridItem(.adaptive(minimum: 140), spacing: 10)]
     private let mediaColumns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 3)
 
@@ -64,6 +65,11 @@ struct ShortcutsView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Biometric authentication failed. Action was cancelled for security.")
+            }
+            .alert("Not Connected", isPresented: $showConnectionAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Connect to your Mac from Home before using Shortcuts.")
             }
         }
     }
@@ -162,7 +168,7 @@ struct ShortcutsView: View {
     }
 
     private func sendShortcut(_ shortcut: KeyboardShortcut) {
-        guard connection.isConnected else { return }
+        guard ensureConnected() else { return }
         sendKeyPress(keyCode: shortcut.keyCode, modifiers: shortcut.modifiers)
     }
 
@@ -188,7 +194,7 @@ struct ShortcutsView: View {
     }
 
     private func executeAction(_ action: SystemAction) {
-        guard connection.isConnected else { return }
+        guard ensureConnected() else { return }
         let command = CommandRequest(command: action.command, requiresAuth: action.requiresAuth)
         do {
             let data = try MessageProtocol.encodePlaintext(command, type: .commandRequest)
@@ -199,8 +205,16 @@ struct ShortcutsView: View {
     }
 
     private func sendMediaKey(_ key: MediaKey) {
-        guard connection.isConnected else { return }
+        guard ensureConnected() else { return }
         sendKeyPress(keyCode: key.keyCode)
+    }
+
+    private func ensureConnected() -> Bool {
+        if connection.isConnected {
+            return true
+        }
+        showConnectionAlert = true
+        return false
     }
 
     private func sendKeyPress(keyCode: UInt16, modifiers: UInt = 0) {
