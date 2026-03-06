@@ -299,9 +299,9 @@ enum MediaKey {
         case .playPause: return 0x64   // F8
         case .nextTrack: return 0x65   // F9
         case .previousTrack: return 0x62 // F7
-        case .volumeUp: return 0x48
-        case .volumeDown: return 0x49
-        case .mute: return 0x4A
+        case .volumeUp: return 0x6F    // F12
+        case .volumeDown: return 0x67  // F11
+        case .mute: return 0x6B        // F10
         }
     }
 }

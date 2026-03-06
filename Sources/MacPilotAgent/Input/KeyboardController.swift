@@ -6,7 +6,6 @@
 
 import Foundation
 import CoreGraphics
-import AppKit
 import SharedCore
 
 // MARK: - KeyboardController
@@ -20,11 +19,14 @@ public final class KeyboardController {
 
     /// Event source for generating keyboard events.
     private let eventSource: CGEventSource?
+    private let hidEventSource: CGEventSource?
 
     // MARK: - Init
 
     public init() {
         self.eventSource = CGEventSource(stateID: .combinedSessionState)
+        self.hidEventSource = CGEventSource(stateID: .hidSystemState)
+        primeEventQueue()
     }
 
     // MARK: - Key Events
@@ -164,33 +166,35 @@ public final class KeyboardController {
     }
 
     private func postMediaKey(_ mediaKey: MediaKeyType, isDown: Bool) {
-        let emit: () -> Void = {
-            let flags = NSEvent.ModifierFlags(rawValue: 0xA00)
-            let data1 = Int((mediaKey.rawValue << 16) | (Int32(isDown ? 0xA : 0xB) << 8))
-            guard let event = NSEvent.otherEvent(
-                with: .systemDefined,
-                location: .zero,
-                modifierFlags: flags,
-                timestamp: 0,
-                windowNumber: 0,
-                context: nil,
-                subtype: 8,
-                data1: data1,
-                data2: -1
-            ) else {
-                return
-            }
-
-            guard let cgEvent = event.cgEvent else { return }
-            cgEvent.post(tap: .cghidEventTap)
-            cgEvent.post(tap: .cgSessionEventTap)
+        let source = hidEventSource ?? eventSource
+        guard let event = CGEvent(source: source) else { return }
+        guard let systemDefined = CGEventType(rawValue: 14) else { return }
+        guard let eventSubtypeField = CGEventField(rawValue: 0x53),
+              let eventData1Field = CGEventField(rawValue: 0x95),
+              let eventData2Field = CGEventField(rawValue: 0x96) else {
+            return
         }
 
-        if Thread.isMainThread {
-            emit()
-        } else {
-            DispatchQueue.main.sync(execute: emit)
+        let keyStateFlags: Int64 = isDown ? 0xA00 : 0xB00
+        let data1 = (Int64(mediaKey.rawValue) << 16) | keyStateFlags
+
+        event.type = systemDefined
+        event.flags = CGEventFlags(rawValue: UInt64(keyStateFlags))
+        event.setIntegerValueField(eventSubtypeField, value: 8)
+        event.setIntegerValueField(eventData1Field, value: data1)
+        event.setIntegerValueField(eventData2Field, value: -1)
+        event.post(tap: .cghidEventTap)
+    }
+
+    private func primeEventQueue() {
+        guard let event = CGEvent(
+            keyboardEventSource: hidEventSource ?? eventSource,
+            virtualKey: 55,
+            keyDown: false
+        ) else {
+            return
         }
+        event.post(tap: .cghidEventTap)
     }
 }
 
@@ -207,9 +211,9 @@ private enum MediaKeyType: Int32 {
         case 0x64: return .playPause
         case 0x65: return .nextTrack
         case 0x62: return .previousTrack
-        case 0x48: return .volumeUp
-        case 0x49: return .volumeDown
-        case 0x4A: return .mute
+        case 0x6F, 0x48: return .volumeUp
+        case 0x67, 0x49: return .volumeDown
+        case 0x6B, 0x4A: return .mute
         default: return nil
         }
     }
