@@ -36,7 +36,8 @@ xcodebuild -project MacPilot.xcodeproj -scheme MacPilotTests \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
-The audit passed those 38 selected tests. Other crypto/certificate tests use
+The audit passed those 38 selected tests. CI runs only the pure networking and
+file-transfer classes; timing measurements remain hardware-dependent manual checks. Other crypto/certificate tests use
 Keychain singletons and were not run against the user's identity store. Physical
 iPhone–Mac connectivity, permissions, file transfer and destructive commands were
 not exercised. See [Turkish technical reference](README.tr.md),
